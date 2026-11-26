@@ -7,6 +7,7 @@ import {
   credentialExpiration,
   credentialString,
 } from '@cloud-idaas/pam-client-sdk';
+import { SDK_VERSION } from './sdk-version';
 
 /** Generic PAM STS snapshot; expiration is ISO 8601 and tmpSecret fields are renamed at the adapter boundary. */
 export interface TencentSessionCredentials extends ExpiringCredential {
@@ -63,28 +64,32 @@ export class IDaaSPamTencentCloudCredentialsProvider extends CachedCloudCredenti
    * @throws ConfigException - The role or configuration is invalid, or the required default factory is not initialized.
    */
   constructor(options: AklessProviderOptions) {
-    super(options, (response) => {
-      const token = response.tencentCloudStsToken;
-      if (!token)
-        throw new CredentialException(
-          'Response is missing tencentCloudStsToken',
-          'InvalidCredentialResponse',
-        );
-      let expiration = credentialExpiration(response, token.expiration);
-      if (token.expiredTime !== undefined) {
-        if (typeof token.expiredTime !== 'number' || !Number.isFinite(token.expiredTime))
-          throw new CredentialException('expiredTime is invalid', 'InvalidExpiration');
-        expiration = Math.min(expiration, token.expiredTime * 1000);
-        if (!Number.isFinite(expiration) || expiration <= Date.now())
-          throw new CredentialException('expiredTime has expired', 'InvalidExpiration');
-      }
-      return {
-        secretId: credentialString(token.tmpSecretId, 'tmpSecretId'),
-        secretKey: credentialString(token.tmpSecretKey, 'tmpSecretKey'),
-        token: credentialString(token.token, 'token'),
-        expiration: new Date(expiration).toISOString(),
-      };
-    });
+    super(
+      options,
+      (response) => {
+        const token = response.tencentCloudStsToken;
+        if (!token)
+          throw new CredentialException(
+            'Response is missing tencentCloudStsToken',
+            'InvalidCredentialResponse',
+          );
+        let expiration = credentialExpiration(response, token.expiration);
+        if (token.expiredTime !== undefined) {
+          if (typeof token.expiredTime !== 'number' || !Number.isFinite(token.expiredTime))
+            throw new CredentialException('expiredTime is invalid', 'InvalidExpiration');
+          expiration = Math.min(expiration, token.expiredTime * 1000);
+          if (!Number.isFinite(expiration) || expiration <= Date.now())
+            throw new CredentialException('expiredTime has expired', 'InvalidExpiration');
+        }
+        return {
+          secretId: credentialString(token.tmpSecretId, 'tmpSecretId'),
+          secretKey: credentialString(token.tmpSecretKey, 'tmpSecretKey'),
+          token: credentialString(token.token, 'token'),
+          expiration: new Date(expiration).toISOString(),
+        };
+      },
+      `idaas-typescript-akless-tencent-adapter/${SDK_VERSION}`,
+    );
   }
   /**
    * Retrieves current credentials for the Tencent Cloud SDK.
